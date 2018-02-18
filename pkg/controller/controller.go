@@ -2,7 +2,9 @@ package controller
 
 import (
 	"bytes"
+	"encoding/json"
 	"io/ioutil"
+	"log"
 	"text/template"
 	"time"
 
@@ -154,11 +156,15 @@ func (c *Controller) Run() error {
 		return err
 	}
 
+	log.Printf("starting run")
+	logConfig(config)
+
 	configFile := c.etcd.Config().EnvFile
 
 	if config.AnyAvailable() {
 		toRemove := c.getRemovalCandidates(config)
 		for _, id := range toRemove {
+			log.Printf("removing etcd node: %s", id)
 			err = c.etcd.Remove(config.AnyAvailableHost(), id)
 			if err != nil {
 				return err
@@ -167,7 +173,9 @@ func (c *Controller) Run() error {
 		}
 	}
 
+	log.Printf("finding realized config")
 	realized := c.getRealizedConfig(config)
+	logConfig(realized)
 	err = ioutil.WriteFile(configFile, realized.ConfigVars(), 0700)
 	if err != nil {
 		return err
@@ -180,6 +188,14 @@ func (c *Controller) Watch(interval time.Duration) {
 	t := time.NewTicker(interval)
 	defer t.Stop()
 	for range t.C {
-		c.Run()
+		err := c.Run()
+		if err != nil {
+			log.Printf("run failed: %v", err)
+		}
 	}
+}
+
+func logConfig(c interface{}) {
+	out, _ := json.MarshalIndent(c, "", "    ")
+	log.Printf("config: %s\n", string(out))
 }
