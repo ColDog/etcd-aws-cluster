@@ -2,7 +2,8 @@ data "ignition_config" "etcd" {
   systemd = [
     "${data.ignition_systemd_unit.locksmithd.id}",
     "${data.ignition_systemd_unit.etcd.id}",
-    "${data.ignition_systemd_unit.cluster.id}",
+    "${data.ignition_systemd_unit.etcd_config.id}",
+    "${data.ignition_systemd_unit.etcd_watcherd.id}",
   ]
 
   files = [
@@ -43,43 +44,57 @@ data "ignition_systemd_unit" "etcd" {
       name    = "20-clct-etcd-member.conf"
       content = <<EOF
 [Unit]
-After=etcd-aws-cluster.service
+After=etcd-config.service
 
 [Service]
-EnvironmentFile=/etc/etcd/peers
-Environment="ETCD_TRUSTED_CA_FILE=/etc/ssl/certs/ca.pem"
-Environment="ETCD_CERT_FILE=/etc/ssl/certs/etcd.pem"
-Environment="ETCD_KEY_FILE=/etc/ssl/certs/etcd-key.pem"
-Environment="ETCD_CLIENT_CERT_AUTH=true"
-Environment="ETCD_PEER_TRUSTED_CA_FILE=/etc/ssl/certs/peer-ca.pem"
-Environment="ETCD_PEER_CERT_FILE=/etc/ssl/certs/peer-etcd.pem"
-Environment="ETCD_PEER_KEY_FILE=/etc/ssl/certs/peer-etcd-key.pem"
-Environment="ETCD_PEER_CLIENT_CERT_AUTH=true"
+EnvironmentFile=/etc/etcd/config
 EOF
     },
   ]
 }
 
-data "ignition_systemd_unit" "cluster" {
-  name    = "etcd-aws-cluster.service"
+data "ignition_systemd_unit" "etcd_config" {
+  name    = "etcd-config.service"
   enabled = true
 
   content = <<EOF
 [Unit]
-Description=ETCD AWS Cluster
+Description=Configure etcd configuration file.
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/docker run \
-  -e ETCD_CERT_FILE=/etc/ssl/certs/etcd.pem \
-  -e ETCD_KEY_FILE=/etc/ssl/certs/etcd-key.pem \
-  -e ETCD_CA_FILE=/etc/ssl/certs/ca.pem \
+ExecStartPre=-/usr/bin/docker pull coldog/etcd-aws-cluster:latest
+ExecStart=/usr/bin/docker run --rm \
   -e ETCD_CLIENT_SCHEME=https \
   -e ETCD_PEER_SCHEME=https \
   -v /etc/etcd/:/etc/etcd/ \
   -v /etc/ssl/:/etc/ssl/ \
-  coldog/etcd-aws-cluster
+  coldog/etcd-aws-cluster:latest \
+  /bin/etcd-config
 RemainAfterExit=true
+
+[Install]
+WantedBy=multi-user.target
+EOF
+}
+
+data "ignition_systemd_unit" "etcd_watcherd" {
+  name    = "etcd-watcherd.service"
+  enabled = true
+
+  content = <<EOF
+[Unit]
+Description=Configure etcd configuration file.
+
+[Service]
+ExecStartPre=-/usr/bin/docker pull coldog/etcd-aws-cluster:latest
+ExecStart=/usr/bin/docker run --rm \
+  -e ETCD_CLIENT_SCHEME=https \
+  -e ETCD_PEER_SCHEME=https \
+  -v /etc/etcd/:/etc/etcd/ \
+  -v /etc/ssl/:/etc/ssl/ \
+  coldog/etcd-aws-cluster:latest \
+  /bin/etcd-watcherd
 
 [Install]
 WantedBy=multi-user.target

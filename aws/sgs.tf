@@ -23,9 +23,4 @@ resource "aws_security_group" "etcd" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
-  tags {
-    KubernetesCluster                           = "${var.namespace}"
-    "kubernetes.io/cluster/${var.namespace}" = "etcd"
-  }
 }

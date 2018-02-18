@@ -58,18 +58,6 @@ resource "aws_autoscaling_group" "etcd" {
   health_check_type         = "EC2"
 
   tag {
-    key                 = "KubernetesCluster"
-    value               = "${var.namespace}"
-    propagate_at_launch = true
-  }
-
-  tag {
-    key                 = "kubernetes.io/cluster/${var.namespace}"
-    value               = "etcd"
-    propagate_at_launch = true
-  }
-
-  tag {
     key                 = "Name"
     value               = "${var.namespace}_etcd"
     propagate_at_launch = true
