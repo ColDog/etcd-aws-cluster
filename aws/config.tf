@@ -26,9 +26,9 @@ data "ignition_systemd_unit" "locksmithd" {
       content = <<EOF
 [Service]
 Environment=REBOOT_STRATEGY=etcd-lock
-Environment="LOCKSMITHD_ETCD_CAFILE=/etc/ssl/certs/ca.pem"
-Environment="LOCKSMITHD_ETCD_CERTFILE=/etc/ssl/certs/etcd.pem"
-Environment="LOCKSMITHD_ETCD_KEYFILE=/etc/ssl/certs/etcd-key.pem"
+Environment="LOCKSMITHD_ETCD_CAFILE=/etc/etcd/certs/ca.pem"
+Environment="LOCKSMITHD_ETCD_CERTFILE=/etc/etcd/certs/etcd.pem"
+Environment="LOCKSMITHD_ETCD_KEYFILE=/etc/etcd/certs/etcd-key.pem"
 Environment="LOCKSMITHD_ENDPOINT=https://127.0.0.1:2379"
 EOF
     },
@@ -48,6 +48,7 @@ After=etcd-config.service
 
 [Service]
 EnvironmentFile=/etc/etcd/config
+Environment="RKT_RUN_ARGS=--volume etc-etcd,kind=host,source=/etc/etcd,readOnly=true --mount volume=etc-etcd,target=/etc/etcd"
 EOF
     },
   ]
@@ -68,10 +69,10 @@ ExecStart=/usr/bin/docker run --rm \
   -e ETCD_CLIENT_SCHEME=https \
   -e ETCD_PEER_SCHEME=https \
   -v /etc/etcd/:/etc/etcd/ \
-  -v /etc/ssl/:/etc/ssl/ \
   coldog/etcd-aws-cluster:latest \
   /bin/etcd-config
 RemainAfterExit=true
+Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
@@ -92,9 +93,10 @@ ExecStart=/usr/bin/docker run --rm \
   -e ETCD_CLIENT_SCHEME=https \
   -e ETCD_PEER_SCHEME=https \
   -v /etc/etcd/:/etc/etcd/ \
-  -v /etc/ssl/:/etc/ssl/ \
   coldog/etcd-aws-cluster:latest \
   /bin/etcd-watcherd
+Restart=on-failure
+RestartSec=30
 
 [Install]
 WantedBy=multi-user.target
@@ -102,7 +104,7 @@ EOF
 }
 
 data "ignition_file" "etcd_ca" {
-  path       = "/etc/ssl/certs/ca.pem"
+  path       = "/etc/etcd/certs/ca.pem"
   mode       = 0644
   filesystem = "root"
 
@@ -112,7 +114,7 @@ data "ignition_file" "etcd_ca" {
 }
 
 data "ignition_file" "etcd_cert" {
-  path       = "/etc/ssl/certs/etcd.pem"
+  path       = "/etc/etcd/certs/etcd.pem"
   mode       = 0644
   filesystem = "root"
 
@@ -122,7 +124,7 @@ data "ignition_file" "etcd_cert" {
 }
 
 data "ignition_file" "etcd_key" {
-  path       = "/etc/ssl/certs/etcd-key.pem"
+  path       = "/etc/etcd/certs/etcd-key.pem"
   mode       = 0644
   filesystem = "root"
 
@@ -132,7 +134,7 @@ data "ignition_file" "etcd_key" {
 }
 
 data "ignition_file" "etcd_peer_ca" {
-  path       = "/etc/ssl/certs/peer-ca.pem"
+  path       = "/etc/etcd/certs/peer-ca.pem"
   mode       = 0644
   filesystem = "root"
 
@@ -142,7 +144,7 @@ data "ignition_file" "etcd_peer_ca" {
 }
 
 data "ignition_file" "etcd_peer_cert" {
-  path       = "/etc/ssl/certs/peer-etcd.pem"
+  path       = "/etc/etcd/certs/peer-etcd.pem"
   mode       = 0644
   filesystem = "root"
 
@@ -152,7 +154,7 @@ data "ignition_file" "etcd_peer_cert" {
 }
 
 data "ignition_file" "etcd_peer_key" {
-  path       = "/etc/ssl/certs/peer-etcd-key.pem"
+  path       = "/etc/etcd/certs/peer-etcd-key.pem"
   mode       = 0644
   filesystem = "root"
 

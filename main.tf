@@ -3,7 +3,7 @@ provider "aws" {
 }
 
 module "etcd" {
-  source = "./module"
+  source = "./aws"
 
   namespace = "default"
   vpc_id    = "vpc-f2b2f696"
