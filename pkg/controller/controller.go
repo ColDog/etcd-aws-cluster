@@ -73,7 +73,10 @@ ETCD_PEER_CERT_FILE={{.PeerCertFile}}
 ETCD_PEER_KEY_FILE={{.PeerKeyFile}}
 ETCD_PEER_CLIENT_CERT_AUTH={{eq .PeerScheme "https"}}
 `
-	template.Must(template.New("").Parse(tpl)).Execute(b, r)
+	err := template.Must(template.New("").Parse(tpl)).Execute(b, r)
+	if err != nil {
+		panic(err)
+	}
 	return b.Bytes()
 }
 
@@ -123,6 +126,7 @@ func (c *Controller) refreshConfig() (*Config, error) {
 
 func (c *Controller) getRealizedConfig(config *Config) *RealizedConfig {
 	realized := &RealizedConfig{
+		Config:                    config.Config,
 		Name:                      config.InstanceID,
 		ListenClientURL:           config.ClientURL("0.0.0.0"),
 		ListenPeerURL:             config.PeerURL("0.0.0.0"),
@@ -132,8 +136,13 @@ func (c *Controller) getRealizedConfig(config *Config) *RealizedConfig {
 
 	// If any are available, join an existing cluster.
 	if config.AnyAvailable() {
+		members := map[string]string{}
+		for k, v := range config.ActiveMembers {
+			members[k] = v
+		}
+		members[config.InstanceID] = config.Hostname
 		realized.ClusterState = "existing"
-		realized.InitialCluster = config.PeerURLs(config.ActiveMembers)
+		realized.InitialCluster = config.PeerURLs(members)
 	} else {
 		realized.ClusterState = "new"
 		realized.InitialCluster = config.PeerURLs(config.Instances)
@@ -173,9 +182,19 @@ func (c *Controller) Run() error {
 		}
 	}
 
-	log.Printf("finding realized config")
+	log.Println("finding realized config")
 	realized := c.getRealizedConfig(config)
 	logConfig(realized)
+
+	if config.AnyAvailable() && !config.AvailableMembers[config.InstanceID] {
+		log.Printf("adding self to cluster: %s", config.Hostname)
+		err = c.etcd.Add(config.AnyAvailableHost(), config.Hostname)
+		if err != nil {
+			return err
+		}
+	}
+
+	log.Printf("writing config: %s", configFile)
 	err = ioutil.WriteFile(configFile, realized.ConfigVars(), 0700)
 	if err != nil {
 		return err
@@ -196,6 +215,9 @@ func (c *Controller) Watch(interval time.Duration) {
 }
 
 func logConfig(c interface{}) {
-	out, _ := json.MarshalIndent(c, "", "    ")
+	out, err := json.MarshalIndent(c, "", "    ")
+	if err != nil {
+		panic(err)
+	}
 	log.Printf("config: %s\n", string(out))
 }

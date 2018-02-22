@@ -27,11 +27,14 @@
     "private/protocol/query",
     "private/protocol/query/queryutil",
     "private/protocol/rest",
+    "private/protocol/restxml",
     "private/protocol/xml/xmlutil",
     "service/autoscaling",
     "service/autoscaling/autoscalingiface",
     "service/ec2",
     "service/ec2/ec2iface",
+    "service/s3",
+    "service/s3/s3iface",
     "service/sts"
   ]
   revision = "bff41fb23b7550368282029f6478819d6a99ae0f"
@@ -103,6 +106,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "9f4550b5d312f662fb7dc2fa346d36fd5ee7f1a634194c8bf75c151b74772529"
+  inputs-digest = "8b4fd5537ef856ba47558b2898f5293b9c2c3d9ce5476406a6ecce294a1ffb15"
   solver-name = "gps-cdcl"
   solver-version = 1

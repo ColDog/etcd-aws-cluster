@@ -72,7 +72,6 @@ ExecStart=/usr/bin/docker run --rm \
   coldog/etcd-aws-cluster:latest \
   /bin/etcd-config
 RemainAfterExit=true
-Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target

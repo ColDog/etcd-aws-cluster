@@ -2,6 +2,7 @@ package aws
 
 import (
 	"errors"
+	"os"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
@@ -10,6 +11,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 )
 
 var createSession = session.NewSession
@@ -21,6 +24,8 @@ type Client interface {
 	GroupName() string
 
 	GroupInstances() (map[string]string, error)
+
+	Upload(filename, bucket, key string) error
 }
 
 func NewClient() (Client, error) {
@@ -47,6 +52,7 @@ func NewClient() (Client, error) {
 	c := &client{
 		asg:        autoscaling.New(sess),
 		ec2:        ec2.New(sess),
+		s3:         s3.New(sess),
 		hostname:   hostname,
 		region:     doc.Region,
 		instanceID: instanceID,
@@ -61,6 +67,7 @@ func NewClient() (Client, error) {
 type client struct {
 	asg        autoscalingiface.AutoScalingAPI
 	ec2        ec2iface.EC2API
+	s3         s3iface.S3API
 	hostname   string
 	region     string
 	instanceID string
@@ -127,4 +134,18 @@ func (c *client) GroupInstances() (map[string]string, error) {
 		}
 	}
 	return out, nil
+}
+
+func (c *client) Upload(filename, bucket, key string) error {
+	f, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	_, err = c.s3.PutObject(&s3.PutObjectInput{
+		Key:    &key,
+		Bucket: &bucket,
+		Body:   f,
+	})
+	return err
 }

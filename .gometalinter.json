@@ -1,0 +1,5 @@
+{
+  "Exclude": [
+    "should have comment or be unexported"
+  ]
+}

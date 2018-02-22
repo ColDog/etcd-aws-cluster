@@ -136,6 +136,7 @@ func TestController_NewClusterRealized(t *testing.T) {
 	}
 
 	expected := &RealizedConfig{
+		Config:       etcdTestConfig,
 		ClusterState: "new",
 		InitialCluster: []string{
 			"1=https://1.ec2.internal:2379",
@@ -163,11 +164,11 @@ ETCD_ADVERTISE_CLIENT_URLS="https://1.ec2.internal:2380"
 ETCD_TRUSTED_CA_FILE=
 ETCD_CERT_FILE=
 ETCD_KEY_FILE=
-ETCD_CLIENT_CERT_AUTH=false
+ETCD_CLIENT_CERT_AUTH=true
 ETCD_PEER_TRUSTED_CA_FILE=
 ETCD_PEER_CERT_FILE=
 ETCD_PEER_KEY_FILE=
-ETCD_PEER_CLIENT_CERT_AUTH=false
+ETCD_PEER_CLIENT_CERT_AUTH=true
 `
 	require.Equal(t, expectedVars, string(realized.ConfigVars()))
 }
@@ -227,11 +228,11 @@ ETCD_ADVERTISE_CLIENT_URLS="https://1.ec2.internal:2380"
 ETCD_TRUSTED_CA_FILE=
 ETCD_CERT_FILE=
 ETCD_KEY_FILE=
-ETCD_CLIENT_CERT_AUTH=false
+ETCD_CLIENT_CERT_AUTH=true
 ETCD_PEER_TRUSTED_CA_FILE=
 ETCD_PEER_CERT_FILE=
 ETCD_PEER_KEY_FILE=
-ETCD_PEER_CLIENT_CERT_AUTH=false
+ETCD_PEER_CLIENT_CERT_AUTH=true
 `
 	data, err := ioutil.ReadFile(etcdTestConfig.EnvFile)
 	require.Nil(t, err)
@@ -306,12 +307,12 @@ func TestController_ExistingClusterRealized(t *testing.T) {
 			"3": false,
 		},
 		ActiveMembers: map[string]string{
-			"1": "1.ec2.internal",
 			"2": "2.ec2.internal",
 		},
 	}
 
 	expected := &RealizedConfig{
+		Config:       etcdTestConfig,
 		ClusterState: "existing",
 		InitialCluster: []string{
 			"1=https://1.ec2.internal:2379",
@@ -339,11 +340,11 @@ ETCD_ADVERTISE_CLIENT_URLS="https://1.ec2.internal:2380"
 ETCD_TRUSTED_CA_FILE=
 ETCD_CERT_FILE=
 ETCD_KEY_FILE=
-ETCD_CLIENT_CERT_AUTH=false
+ETCD_CLIENT_CERT_AUTH=true
 ETCD_PEER_TRUSTED_CA_FILE=
 ETCD_PEER_CERT_FILE=
 ETCD_PEER_KEY_FILE=
-ETCD_PEER_CLIENT_CERT_AUTH=false
+ETCD_PEER_CLIENT_CERT_AUTH=true
 `
 	require.Equal(t, expectedVars, string(realized.ConfigVars()))
 }
@@ -386,7 +387,7 @@ func TestController_ExistingClusterRun(t *testing.T) {
 		"2": "2.ec2.internal",
 	}, nil)
 
-	e.On("IsAvailable", "1.ec2.internal").Return(true)
+	e.On("IsAvailable", "1.ec2.internal").Return(false)
 	e.On("IsAvailable", "2.ec2.internal").Return(true)
 	e.On("Config").Return(etcdTestConfig)
 	e.On("Members", "1.ec2.internal").Return(map[string]string{
@@ -397,6 +398,7 @@ func TestController_ExistingClusterRun(t *testing.T) {
 		"1": "1.ec2.internal",
 		"2": "2.ec2.internal",
 	}, nil)
+	e.On("Add", "2.ec2.internal", "1.ec2.internal").Return(nil)
 
 	err := c.Run()
 	require.Nil(t, err)
@@ -412,11 +414,11 @@ ETCD_ADVERTISE_CLIENT_URLS="https://1.ec2.internal:2380"
 ETCD_TRUSTED_CA_FILE=
 ETCD_CERT_FILE=
 ETCD_KEY_FILE=
-ETCD_CLIENT_CERT_AUTH=false
+ETCD_CLIENT_CERT_AUTH=true
 ETCD_PEER_TRUSTED_CA_FILE=
 ETCD_PEER_CERT_FILE=
 ETCD_PEER_KEY_FILE=
-ETCD_PEER_CLIENT_CERT_AUTH=false
+ETCD_PEER_CLIENT_CERT_AUTH=true
 `
 	data, err := ioutil.ReadFile(etcdTestConfig.EnvFile)
 	require.Nil(t, err)
@@ -470,14 +472,74 @@ ETCD_ADVERTISE_CLIENT_URLS="https://1.ec2.internal:2380"
 ETCD_TRUSTED_CA_FILE=
 ETCD_CERT_FILE=
 ETCD_KEY_FILE=
-ETCD_CLIENT_CERT_AUTH=false
+ETCD_CLIENT_CERT_AUTH=true
 ETCD_PEER_TRUSTED_CA_FILE=
 ETCD_PEER_CERT_FILE=
 ETCD_PEER_KEY_FILE=
-ETCD_PEER_CLIENT_CERT_AUTH=false
+ETCD_PEER_CLIENT_CERT_AUTH=true
 `
 	data, err := ioutil.ReadFile(etcdTestConfig.EnvFile)
 	require.Nil(t, err)
 
 	require.Equal(t, expectedVars, string(data))
+}
+
+func TestController_RealizedSSL(t *testing.T) {
+	config := &Config{
+		Config:     etcd.GetEnvConfig(),
+		InstanceID: "1",
+		Hostname:   "1.ec2.internal",
+		GroupName:  "test",
+		Instances: map[string]string{
+			"1": "1.ec2.internal",
+			"2": "2.ec2.internal",
+			"3": "3.ec2.internal",
+		},
+		AvailableMembers: map[string]bool{
+			"1": true,
+			"2": true,
+			"3": false,
+		},
+		ActiveMembers: map[string]string{
+			"1": "1.ec2.internal",
+			"2": "2.ec2.internal",
+		},
+	}
+
+	expected := &RealizedConfig{
+		Config:       etcd.GetEnvConfig(),
+		ClusterState: "existing",
+		InitialCluster: []string{
+			"1=https://1.ec2.internal:2380",
+			"2=https://2.ec2.internal:2380",
+		},
+		Name: "1",
+		InitialAdvertisePeerURL:   "https://1.ec2.internal:2380",
+		InitialAdvertiseClientURL: "https://1.ec2.internal:2379",
+		ListenClientURL:           "https://0.0.0.0:2379",
+		ListenPeerURL:             "https://0.0.0.0:2380",
+	}
+
+	realized := (&Controller{}).getRealizedConfig(config)
+
+	require.Equal(t, expected, realized)
+
+	const expectedVars = `
+ETCD_INITIAL_CLUSTER_STATE="existing"
+ETCD_NAME="1"
+ETCD_INITIAL_CLUSTER="1=https://1.ec2.internal:2380,2=https://2.ec2.internal:2380"
+ETCD_LISTEN_CLIENT_URLS="https://0.0.0.0:2379"
+ETCD_LISTEN_PEER_URLS="https://0.0.0.0:2380"
+ETCD_INITIAL_ADVERTISE_PEER_URLS="https://1.ec2.internal:2380"
+ETCD_ADVERTISE_CLIENT_URLS="https://1.ec2.internal:2379"
+ETCD_TRUSTED_CA_FILE=/etc/etcd/certs/ca.pem
+ETCD_CERT_FILE=/etc/etcd/certs/etcd.pem
+ETCD_KEY_FILE=/etc/etcd/certs/etcd-key.pem
+ETCD_CLIENT_CERT_AUTH=true
+ETCD_PEER_TRUSTED_CA_FILE=/etc/etcd/certs/peer-ca.pem
+ETCD_PEER_CERT_FILE=/etc/etcd/certs/peer-etcd.pem
+ETCD_PEER_KEY_FILE=/etc/etcd/certs/peer-etcd-key.pem
+ETCD_PEER_CLIENT_CERT_AUTH=true
+`
+	require.Equal(t, expectedVars, string(realized.ConfigVars()))
 }
