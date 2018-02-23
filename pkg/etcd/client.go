@@ -15,7 +15,7 @@ import (
 
 type connectFunc = func(url string) (etcd.MembersAPI, error)
 
-func connector(tp *http.Transport) connectFunc {
+func connector(tp etcd.CancelableTransport) connectFunc {
 	return func(url string) (etcd.MembersAPI, error) {
 		cl, err := etcd.New(etcd.Config{
 			Endpoints: []string{url},
@@ -66,7 +66,7 @@ func (c Config) PeerURLs(m map[string]string) (urls []string) {
 	return
 }
 
-func NewClient(c Config) (*client, error) {
+func NewClient(c Config) (Client, error) {
 	tp := http.DefaultTransport.(*http.Transport)
 	if c.ClientScheme == "https" {
 		var err error
@@ -100,10 +100,7 @@ func (c *client) Add(clientHostname, candidateHostname string) error {
 		return err
 	}
 	_, err = api.Add(ctx, candidateURL)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (c *client) Remove(clientHostname, name string) error {
@@ -128,11 +125,7 @@ func (c *client) Remove(clientHostname, name string) error {
 			break
 		}
 	}
-	err = api.Remove(ctx, id)
-	if err != nil {
-		return err
-	}
-	return nil
+	return api.Remove(ctx, id)
 }
 
 func (c *client) IsAvailable(hostname string) bool {
@@ -177,7 +170,10 @@ func (c *client) Members(hostname string) (map[string]string, error) {
 		if len(m.ClientURLs) == 0 {
 			continue
 		}
-		u, _ := url.Parse(m.ClientURLs[0])
+		u, err := url.Parse(m.ClientURLs[0])
+		if err != nil {
+			return nil, err
+		}
 		membs[m.Name] = u.Hostname()
 	}
 	return membs, nil

@@ -1,5 +1,6 @@
 {
   "Exclude": [
-    "should have comment or be unexported"
+    "should have comment or be unexported",
+    "Subprocess launching with variable"
   ]
 }

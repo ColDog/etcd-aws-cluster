@@ -195,12 +195,7 @@ func (c *Controller) Run() error {
 	}
 
 	log.Printf("writing config: %s", configFile)
-	err = ioutil.WriteFile(configFile, realized.ConfigVars(), 0700)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return ioutil.WriteFile(configFile, realized.ConfigVars(), 0700)
 }
 
 func (c *Controller) Watch(interval time.Duration) {

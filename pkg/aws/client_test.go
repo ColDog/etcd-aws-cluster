@@ -3,7 +3,11 @@ package aws
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
+
+	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -57,6 +61,16 @@ func (m *ASGMock) DescribeAutoScalingGroupsPages(
 	a := m.Called(in)
 	fn(a.Get(0).(*autoscaling.DescribeAutoScalingGroupsOutput), true)
 	return a.Error(1)
+}
+
+type S3Mock struct {
+	s3iface.S3API
+	mock.Mock
+}
+
+func (m *S3Mock) PutObject(in *s3.PutObjectInput) (*s3.PutObjectOutput, error) {
+	a := m.Called(in)
+	return a.Get(0).(*s3.PutObjectOutput), a.Error(1)
 }
 
 func TestClient_Load(t *testing.T) {
@@ -152,4 +166,30 @@ func TestClient_LoadName(t *testing.T) {
 	require.Equal(t, "new", c.groupName)
 
 	a.AssertExpectations(t)
+}
+
+func TestClient_Upload(t *testing.T) {
+	s := &S3Mock{}
+
+	c := &client{
+		s3:         s,
+		hostname:   "1.ec2.internal",
+		region:     "us-west-2",
+		instanceID: "1",
+		groupName:  "test",
+	}
+
+	f, _ := os.Open("testdata/test.txt")
+	defer f.Close()
+
+	s.On("PutObject",
+		mock.MatchedBy(func(in *s3.PutObjectInput) bool {
+			return *in.Bucket == "test" && *in.Key == "test"
+		})).
+		Return(&s3.PutObjectOutput{}, nil)
+
+	err := c.Upload("testdata/test.txt", "test", "test")
+	require.Nil(t, err)
+
+	s.AssertExpectations(t)
 }

@@ -49,6 +49,9 @@ func NewClient() (Client, error) {
 	sess, err = createSession(&aws.Config{
 		Region: &doc.Region,
 	})
+	if err != nil {
+		return nil, err
+	}
 	c := &client{
 		asg:        autoscaling.New(sess),
 		ec2:        ec2.New(sess),
@@ -136,12 +139,16 @@ func (c *client) GroupInstances() (map[string]string, error) {
 	return out, nil
 }
 
-func (c *client) Upload(filename, bucket, key string) error {
+func (c *client) Upload(filename, bucket, key string) (err error) {
 	f, err := os.Open(filename)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() {
+		if cErr := f.Close(); cErr != nil {
+			err = cErr
+		}
+	}()
 	_, err = c.s3.PutObject(&s3.PutObjectInput{
 		Key:    &key,
 		Bucket: &bucket,

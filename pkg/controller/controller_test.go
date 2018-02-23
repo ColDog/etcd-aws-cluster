@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"testing"
 
+	"github.com/coldog/etcd-aws-cluster/pkg/aws"
 	"github.com/coldog/etcd-aws-cluster/pkg/etcd"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -24,6 +25,7 @@ var etcdTestConfig = etcd.Config{
 }
 
 type MockAWS struct {
+	aws.Client
 	mock.Mock
 }
 

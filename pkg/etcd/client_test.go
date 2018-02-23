@@ -10,8 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var ctx = context.Background()
-
 type MockAPI struct {
 	etcd.MembersAPI
 	mock.Mock
