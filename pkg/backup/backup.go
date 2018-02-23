@@ -9,6 +9,11 @@ import (
 	"github.com/coldog/etcd-aws-cluster/pkg/aws"
 )
 
+var (
+	backupRoot = "/var/lib/etcd-backup"
+	backupDir  = backupRoot + "/backup"
+)
+
 var sh = func(cmd string, args ...string) error {
 	return exec.Command(cmd, args...).Run()
 }
@@ -19,27 +24,26 @@ type Config struct {
 	Prefix string
 }
 
-func createBackup(id string) (string, string, error) {
-	t := time.Now()
-	backupID := "etcd-" + id + "-" + t.Format("2006-01-02T15-04-05Z07-00")
-	file := "/var/lib/etcd-backup/" + backupID + ".tar.gz"
+func createBackup(id string, ts time.Time) (string, string, error) {
+	backupID := "etcd-" + id + "-" + ts.Format("2006-01-02T15-04-05Z07-00")
+	file := backupRoot + "/" + backupID + ".tar.gz"
 
-	if err := os.MkdirAll("/var/lib/etcd-backup/backup", 0700); err != nil {
+	if err := os.MkdirAll(backupDir, 0700); err != nil {
 		return "", "", err
 	}
 	if err := sh("/bin/etcdctl", "backup", "--data-dir", "/var/lib/etcd",
-		"--backup-dir", "/var/lib/etcd-backup/backup"); err != nil {
+		"--backup-dir", backupDir); err != nil {
 		return "", "", err
 	}
-	if err := sh("/bin/tar", "-C", "/var/lib/etcd-backup", "-zcf",
+	if err := sh("/bin/tar", "-C", backupRoot, "-zcf",
 		file, "."); err != nil {
 		return "", "", err
 	}
 	return backupID, file, nil
 }
 
-func Backup(s3 aws.Client, c Config) error {
-	backupID, filename, err := createBackup(c.NodeID)
+func Backup(s3 aws.Client, c Config, ts time.Time) error {
+	backupID, filename, err := createBackup(c.NodeID, ts)
 	if err != nil {
 		return err
 	}
@@ -50,7 +54,7 @@ func Watch(s3 aws.Client, c Config, interval time.Duration) {
 	t := time.NewTicker(interval)
 	defer t.Stop()
 	for range t.C {
-		err := Backup(s3, c)
+		err := Backup(s3, c, time.Now())
 		if err != nil {
 			log.Printf("backup failed: %v", err)
 		}
