@@ -23,7 +23,7 @@ data "aws_ami" "coreos_ami" {
 }
 
 resource "aws_launch_configuration" "etcd" {
-  name                 = "${var.namespace}_etcd_lc_${uuid()}"
+  name                 = "${var.namespace}-etcd-${md5(data.ignition_config.etcd.rendered)}"
   image_id             = "${data.aws_ami.coreos_ami.image_id}"
   instance_type        = "${var.instance_type}"
   key_name             = "${var.ssh_key}"
@@ -45,7 +45,7 @@ resource "aws_launch_configuration" "etcd" {
 }
 
 resource "aws_autoscaling_group" "etcd" {
-  name                 = "${var.namespace}_etcd_asg"
+  name                 = "${var.namespace}-etcd"
   max_size             = "${var.max}"
   min_size             = "${var.min}"
   desired_capacity     = "${var.desired}"
@@ -57,9 +57,11 @@ resource "aws_autoscaling_group" "etcd" {
   health_check_grace_period = 30
   health_check_type         = "EC2"
 
+  target_group_arns = ["${aws_lb_target_group.etcd.arn}"]
+
   tag {
     key                 = "Name"
-    value               = "${var.namespace}_etcd"
+    value               = "${var.namespace}-etcd"
     propagate_at_launch = true
   }
 

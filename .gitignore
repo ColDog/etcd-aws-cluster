@@ -1,4 +1,7 @@
-.env
-.terraform*
-terraform.tfstate*
 .vscode
+.env
+
+# Terraform.
+.terraform*
+main.tf
+*.tfstate*

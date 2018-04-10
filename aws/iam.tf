@@ -1,10 +1,10 @@
-resource "aws_iam_instance_profile" "etcd_profile" {
-  name = "${var.namespace}_etcd_profile"
-  role = "${aws_iam_role.etcd_role.name}"
+resource "aws_iam_instance_profile" "etcd" {
+  name = "${var.namespace}-etcd"
+  role = "${aws_iam_role.etcd.name}"
 }
 
-resource "aws_iam_role" "etcd_role" {
-  name = "${var.namespace}_etcd_role"
+resource "aws_iam_role" "etcd" {
+  name = "${var.namespace}-etcd"
   path = "/"
 
   assume_role_policy = <<EOF
@@ -24,9 +24,9 @@ resource "aws_iam_role" "etcd_role" {
 EOF
 }
 
-resource "aws_iam_role_policy" "etcd_policy" {
-  name = "${var.namespace}_etcd_policy"
-  role = "${aws_iam_role.etcd_role.id}"
+resource "aws_iam_role_policy" "etcd" {
+  name = "${var.namespace}-etcd"
+  role = "${aws_iam_role.etcd.id}"
 
   policy = <<EOF
 {
