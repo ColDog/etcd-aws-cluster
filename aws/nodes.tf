@@ -27,7 +27,7 @@ resource "aws_launch_configuration" "etcd" {
   image_id             = "${data.aws_ami.coreos_ami.image_id}"
   instance_type        = "${var.instance_type}"
   key_name             = "${var.ssh_key}"
-  iam_instance_profile = "${aws_iam_instance_profile.etcd_profile.id}"
+  iam_instance_profile = "${aws_iam_instance_profile.etcd.id}"
   security_groups      = ["${aws_security_group.etcd.id}"]
 
   associate_public_ip_address = false
