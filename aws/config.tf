@@ -144,7 +144,7 @@ Description=ETCDMetadata
 Type=oneshot
 Environment=OUTPUT=/run/metadata/etcd
 ExecStart=/usr/bin/mkdir --parent /run/metadata
-ExecStart=/usr/bin/bash -c 'echo "ETCD_UID=$$(id -u etcd)" > $${OUTPUT}"'
+ExecStart=/usr/bin/bash -c 'echo "ETCD_UID=$$(id -u etcd)" > $${OUTPUT}'
 EOF
 }
 
