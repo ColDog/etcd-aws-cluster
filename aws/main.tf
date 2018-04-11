@@ -1,9 +1,7 @@
-variable "namespace" {
-  default = "default"
-}
+variable "namespace" {}
 
 variable "ssh_key" {
-  default = "default_key"
+  default = "default"
 }
 
 variable "min" {
@@ -28,12 +26,8 @@ variable "instance_type" {
 
 variable "vpc_id" {}
 
-variable "security_groups" {
-  default = []
-}
-
 variable "subnet_ids" {
-  default = []
+  type = "list"
 }
 
 variable "pki_ca_url" {}

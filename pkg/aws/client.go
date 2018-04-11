@@ -133,7 +133,7 @@ func (c *client) GroupInstances() (map[string]string, error) {
 			if len(inst.NetworkInterfaces) == 0 {
 				continue
 			}
-			out[*inst.InstanceId] = *inst.NetworkInterfaces[0].PrivateDnsName
+			out[*inst.InstanceId] = *inst.NetworkInterfaces[0].PrivateIpAddress
 		}
 	}
 	return out, nil

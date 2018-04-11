@@ -112,13 +112,13 @@ func TestClient_Instances(t *testing.T) {
 				{
 					InstanceId: aws.String("1"),
 					NetworkInterfaces: []*ec2.InstanceNetworkInterface{{
-						PrivateDnsName: aws.String("1.ec2.internal"),
+						PrivateIpAddress: aws.String("1.ec2.internal"),
 					}},
 				},
 				{
 					InstanceId: aws.String("2"),
 					NetworkInterfaces: []*ec2.InstanceNetworkInterface{{
-						PrivateDnsName: aws.String("2.ec2.internal"),
+						PrivateIpAddress: aws.String("2.ec2.internal"),
 					}},
 				},
 			},

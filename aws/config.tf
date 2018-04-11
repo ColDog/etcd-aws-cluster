@@ -6,6 +6,10 @@ data "ignition_config" "etcd" {
     "${data.ignition_systemd_unit.etcd_watcherd.id}",
     "${data.ignition_systemd_unit.etcd_server_cert.id}",
     "${data.ignition_systemd_unit.etcd_peer_cert.id}",
+    "${data.ignition_systemd_unit.etcd_backup.id}",
+    "${data.ignition_systemd_unit.etcd_backup_timer.id}",
+    "${data.ignition_systemd_unit.etcd_server_cert_timer.id}",
+    "${data.ignition_systemd_unit.etcd_peer_cert_timer.id}",
   ]
 
   files = [
@@ -64,9 +68,14 @@ Requires=coreos-metadata.service
 After=coreos-metadata.service
 
 [Service]
+EnvironmentFile=/run/metadata/coreos
+Environment="ETCD_UID=232"
 Type=oneshot
 ExecStartPre=-/usr/bin/docker pull ${var.pki_image}
+ExecStartPre=/usr/bin/mkdir -p /etc/etcd/certs
+ExecStartPost=/usr/bin/chown -R etcd:etcd /etc/etcd/certs
 ExecStart=/usr/bin/docker run --rm -i \
+  --user $${ETCD_UID} \
   -e ETCD_SERVER_KEY=${var.pki_etcd_server_key} \
   -e CA_URL=${var.pki_ca_url} \
   -e INSTANCE_IP=$${COREOS_EC2_IPV4_LOCAL} \
@@ -92,9 +101,14 @@ Requires=coreos-metadata.service
 After=coreos-metadata.service
 
 [Service]
+EnvironmentFile=/run/metadata/coreos
+Environment="ETCD_UID=232"
 Type=oneshot
 ExecStartPre=-/usr/bin/docker pull ${var.pki_image}
+ExecStartPre=/usr/bin/mkdir -p /etc/etcd/certs
+ExecStartPost=/usr/bin/chown -R etcd:etcd /etc/etcd/certs
 ExecStart=/usr/bin/docker run --rm -i \
+  --user $${ETCD_UID} \
   -e ETCD_SERVER_KEY=${var.pki_etcd_server_key} \
   -e CA_URL=${var.pki_ca_url} \
   -e INSTANCE_IP=$${COREOS_EC2_IPV4_LOCAL} \
@@ -116,6 +130,10 @@ data "ignition_systemd_unit" "etcd_config" {
   content = <<EOF
 [Unit]
 Description=ETCDConfig
+Requires=etcd-peer-cert.service
+Requires=etcd-server-cert.service
+After=etcd-peer-cert.service
+After=etcd-server-cert.service
 
 [Service]
 Type=oneshot
@@ -138,7 +156,11 @@ data "ignition_systemd_unit" "etcd_watcherd" {
 
   content = <<EOF
 [Unit]
-Description=Configure etcd configuration file.
+Description=ETCDConfigWatcherd
+Requires=etcd-peer-cert.service
+Requires=etcd-server-cert.service
+After=etcd-peer-cert.service
+After=etcd-server-cert.service
 
 [Service]
 ExecStartPre=-/usr/bin/docker pull ${var.controller_image}
@@ -166,8 +188,8 @@ ETCD_ENV_FILE=/etc/etcd/config
 ETCD_CLIENT_SCHEME=https
 ETCD_CLIENT_PORT=2379
 ETCD_CLIENT_CA_FILE=/etc/etcd/certs/etcd-server-ca.pem
-ETCD_CLIENT_CERT_FILE=etc/etcd/certs/etcd-server.pem
-ETCD_CLIENT_KEY_FILE=etc/etcd/certs/etcd-server-key.pem
+ETCD_CLIENT_CERT_FILE=/etc/etcd/certs/etcd-server.pem
+ETCD_CLIENT_KEY_FILE=/etc/etcd/certs/etcd-server-key.pem
 ETCD_PEER_SCHEME=https
 ETCD_PEER_PORT=2380
 ETCD_PEER_CA_FILE=/etc/etcd/certs/etcd-peer-ca.pem
@@ -175,4 +197,85 @@ ETCD_PEER_CERT_FILE=/etc/etcd/certs/etcd-peer.pem
 ETCD_PEER_KEY_FILE=/etc/etcd/certs/etcd-peer-key.pem
 EOF
   }
+}
+
+data "ignition_systemd_unit" "etcd_backup" {
+  name    = "etcd-backup.service"
+  enabled = true
+
+  content = <<EOF
+[Unit]
+Description=ETCDBackup
+
+[Service]
+Type=oneshot
+
+EnvironmentFile=/run/metadata/coreos
+Environment="ETCD_DATA_DIR=/var/lib/etcd"
+Environment="ETCD_BACKUP_DIR=/var/lib/etcd-backup"
+Environment="S3_PATH=s3://${aws_s3_bucket.etcd.bucket}"
+Environment="BACKUP_FILE=/tmp/etcd-backup.tar.gz"
+
+ExecStartPre=/usr/bin/rm -rf $${ETCD_BACKUP_DIR}
+ExecStartPre=/usr/bin/mkdir -p $${ETCD_BACKUP_DIR}/member/snap
+ExecStartPre=/usr/bin/echo ETCD_DATA_DIR: $${ETCD_DATA_DIR}
+ExecStartPre=/usr/bin/echo ETCD_BACKUP_DIR: $${ETCD_BACKUP_DIR}
+ExecStartPre=/usr/bin/etcdctl backup --data-dir=$${ETCD_DATA_DIR} --backup-dir=$${ETCD_BACKUP_DIR}
+ExecStartPre=/usr/bin/touch $${ETCD_BACKUP_DIR}/member/snap/backup
+ExecStartPre=/usr/bin/tar tar -zcvf $${BACKUP_FILE} -C $${ETCD_BACKUP_DIR} .
+
+ExecStart=/usr/bin/docker run --rm -v /tmp:/tmp mesosphere/aws-cli s3 cp $${BACKUP_FILE} $${S3_PATH}/backups/$${COREOS_EC2_INSTANCE_ID}.tar.gz
+EOF
+}
+
+data "ignition_systemd_unit" "etcd_backup_timer" {
+  name    = "etcd-backup.timer"
+  enabled = true
+
+  content = <<EOF
+
+[Unit]
+Description=ETCDBackupTimer
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=5min
+
+[Install]
+WantedBy=timers.target
+EOF
+}
+
+data "ignition_systemd_unit" "etcd_peer_cert_timer" {
+  name    = "etcd-peer-cert.timer"
+  enabled = true
+
+  content = <<EOF
+
+[Unit]
+Description=ETCDPeerCertTimer
+
+[Timer]
+OnActiveSec=7d
+
+[Install]
+WantedBy=timers.target
+EOF
+}
+
+data "ignition_systemd_unit" "etcd_server_cert_timer" {
+  name    = "etcd-server-cert.timer"
+  enabled = true
+
+  content = <<EOF
+
+[Unit]
+Description=ETCDServerCertTimer
+
+[Timer]
+OnActiveSec=7d
+
+[Install]
+WantedBy=timers.target
+EOF
 }

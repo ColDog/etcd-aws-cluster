@@ -72,3 +72,7 @@ The following variables will be written to the output file:
 - `ETCD_PEER_CERT_FILE`: This is passed through from the input configuration.
 - `ETCD_PEER_KEY_FILE`: : This is passed through from the input configuration.
 - `ETCD_PEER_CLIENT_CERT_AUTH`: This is passed through from the input configuration.
+
+## Terraform
+
+A terraform module is included at `aws`. It depends on the [pki](https://github.com/coldog/pki) project for signing certificates.

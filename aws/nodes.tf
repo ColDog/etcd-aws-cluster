@@ -23,7 +23,7 @@ data "aws_ami" "coreos_ami" {
 }
 
 resource "aws_launch_configuration" "etcd" {
-  name                 = "${var.namespace}-etcd-${md5(data.ignition_config.etcd.rendered)}"
+  name                 = "${var.namespace}-etcd-${substr(sha256(data.ignition_config.etcd.rendered), 0, 8)}"
   image_id             = "${data.aws_ami.coreos_ami.image_id}"
   instance_type        = "${var.instance_type}"
   key_name             = "${var.ssh_key}"
