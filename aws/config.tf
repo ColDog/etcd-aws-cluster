@@ -7,6 +7,7 @@ data "ignition_config" "etcd" {
     "${data.ignition_systemd_unit.etcd_server_cert.id}",
     "${data.ignition_systemd_unit.etcd_peer_cert.id}",
     "${data.ignition_systemd_unit.etcd_backup.id}",
+    "${data.ignition_systemd_unit.etcd_metadata.id}",
     "${data.ignition_systemd_unit.etcd_backup_timer.id}",
     "${data.ignition_systemd_unit.etcd_server_cert_timer.id}",
     "${data.ignition_systemd_unit.etcd_peer_cert_timer.id}",
@@ -66,16 +67,19 @@ data "ignition_systemd_unit" "etcd_server_cert" {
 Description=ETCDServerCerts
 Requires=coreos-metadata.service
 After=coreos-metadata.service
+Requires=etcd-metadata.service
+After=etcd-metadata.service
 
 [Service]
-EnvironmentFile=/run/metadata/coreos
-Environment="ETCD_UID=232"
 Type=oneshot
+EnvironmentFile=/run/metadata/coreos
+EnvironmentFile=/run/metadata/etcd
 ExecStartPre=-/usr/bin/docker pull ${var.pki_image}
 ExecStartPre=/usr/bin/mkdir -p /etc/etcd/certs
+ExecStartPre=/usr/bin/chown -R etcd:etcd /etc/etcd
 ExecStartPost=/usr/bin/chown -R etcd:etcd /etc/etcd/certs
 ExecStart=/usr/bin/docker run --rm -i \
-  --user $${ETCD_UID} \
+  --user=$${ETCD_UID} \
   -e ETCD_SERVER_KEY=${var.pki_etcd_server_key} \
   -e CA_URL=${var.pki_ca_url} \
   -e INSTANCE_IP=$${COREOS_EC2_IPV4_LOCAL} \
@@ -83,7 +87,7 @@ ExecStart=/usr/bin/docker run --rm -i \
   -e INSTANCE_HOSTNAME=$${COREOS_EC2_HOSTNAME} \
   -v /etc/etcd/certs:/certs \
   ${var.pki_image} gencert etcd server
-RemainAfterExit=true
+ExecStop=/usr/bin/docker stop etcd-peer-cert
 
 [Install]
 WantedBy=multi-user.target
@@ -99,16 +103,21 @@ data "ignition_systemd_unit" "etcd_peer_cert" {
 Description=ETCDPeerCerts
 Requires=coreos-metadata.service
 After=coreos-metadata.service
+Requires=etcd-metadata.service
+After=etcd-metadata.service
+Requires=etcd-server-cert.service
+After=etcd-server-cert.service
 
 [Service]
-EnvironmentFile=/run/metadata/coreos
-Environment="ETCD_UID=232"
 Type=oneshot
+EnvironmentFile=/run/metadata/coreos
+EnvironmentFile=/run/metadata/etcd
 ExecStartPre=-/usr/bin/docker pull ${var.pki_image}
 ExecStartPre=/usr/bin/mkdir -p /etc/etcd/certs
+ExecStartPre=/usr/bin/chown -R etcd:etcd /etc/etcd
 ExecStartPost=/usr/bin/chown -R etcd:etcd /etc/etcd/certs
 ExecStart=/usr/bin/docker run --rm -i \
-  --user $${ETCD_UID} \
+  --user=$${ETCD_UID} \
   -e ETCD_SERVER_KEY=${var.pki_etcd_server_key} \
   -e CA_URL=${var.pki_ca_url} \
   -e INSTANCE_IP=$${COREOS_EC2_IPV4_LOCAL} \
@@ -116,10 +125,26 @@ ExecStart=/usr/bin/docker run --rm -i \
   -e INSTANCE_HOSTNAME=$${COREOS_EC2_HOSTNAME} \
   -v /etc/etcd/certs:/certs \
   ${var.pki_image} gencert etcd peer
-RemainAfterExit=true
+ExecStop=/usr/bin/docker stop etcd-peer-cert
 
 [Install]
 WantedBy=multi-user.target
+EOF
+}
+
+data "ignition_systemd_unit" "etcd_metadata" {
+  name    = "etcd-metadata.service"
+  enabled = true
+
+  content = <<EOF
+[Unit]
+Description=ETCDMetadata
+
+[Service]
+Type=oneshot
+Environment=OUTPUT=/run/metadata/etcd
+ExecStart=/usr/bin/mkdir --parent /run/metadata
+ExecStart=/usr/bin/bash -c 'echo "ETCD_UID=$$(id -u etcd)" > $${OUTPUT}"'
 EOF
 }
 
@@ -201,7 +226,7 @@ EOF
 
 data "ignition_systemd_unit" "etcd_backup" {
   name    = "etcd-backup.service"
-  enabled = true
+  enabled = false
 
   content = <<EOF
 [Unit]
@@ -238,8 +263,8 @@ data "ignition_systemd_unit" "etcd_backup_timer" {
 Description=ETCDBackupTimer
 
 [Timer]
-OnBootSec=1min
-OnUnitActiveSec=5min
+OnBootSec=15min
+OnUnitActiveSec=15min
 
 [Install]
 WantedBy=timers.target
