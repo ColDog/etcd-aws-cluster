@@ -30,6 +30,7 @@ type MockAWS struct {
 }
 
 func (m *MockAWS) Hostname() string   { return m.Called().String(0) }
+func (m *MockAWS) IP() string         { return m.Called().String(0) }
 func (m *MockAWS) Region() string     { return m.Called().String(0) }
 func (m *MockAWS) InstanceID() string { return m.Called().String(0) }
 func (m *MockAWS) GroupName() string  { return m.Called().String(0) }
@@ -88,7 +89,7 @@ func TestController_NewClusterGetConfig(t *testing.T) {
 	}
 
 	a.On("InstanceID").Return("1")
-	a.On("Hostname").Return("1.ec2.internal")
+	a.On("IP").Return("1.ec2.internal")
 	a.On("GroupName").Return("test")
 	a.On("GroupInstances").Return(map[string]string{
 		"1": "1.ec2.internal",
@@ -100,10 +101,10 @@ func TestController_NewClusterGetConfig(t *testing.T) {
 	e.On("Config").Return(etcdTestConfig)
 
 	expected := &Config{
-		Config:     etcdTestConfig,
-		InstanceID: "1",
-		Hostname:   "1.ec2.internal",
-		GroupName:  "test",
+		Config:       etcdTestConfig,
+		InstanceID:   "1",
+		InstanceHost: "1.ec2.internal",
+		GroupName:    "test",
 		Instances: map[string]string{
 			"1": "1.ec2.internal",
 			"2": "2.ec2.internal",
@@ -122,10 +123,10 @@ func TestController_NewClusterGetConfig(t *testing.T) {
 
 func TestController_NewClusterRealized(t *testing.T) {
 	config := &Config{
-		Config:     etcdTestConfig,
-		InstanceID: "1",
-		Hostname:   "1.ec2.internal",
-		GroupName:  "test",
+		Config:       etcdTestConfig,
+		InstanceID:   "1",
+		InstanceHost: "1.ec2.internal",
+		GroupName:    "test",
 		Instances: map[string]string{
 			"1": "1.ec2.internal",
 			"2": "2.ec2.internal",
@@ -177,10 +178,10 @@ ETCD_PEER_CLIENT_CERT_AUTH=true
 
 func TestController_NewClusterRemoval(t *testing.T) {
 	config := &Config{
-		Config:     etcdTestConfig,
-		InstanceID: "1",
-		Hostname:   "1.ec2.internal",
-		GroupName:  "test",
+		Config:       etcdTestConfig,
+		InstanceID:   "1",
+		InstanceHost: "1.ec2.internal",
+		GroupName:    "test",
 		Instances: map[string]string{
 			"1": "1.ec2.internal",
 			"2": "2.ec2.internal",
@@ -205,7 +206,7 @@ func TestController_NewClusterRun(t *testing.T) {
 	}
 
 	a.On("InstanceID").Return("1")
-	a.On("Hostname").Return("1.ec2.internal")
+	a.On("IP").Return("1.ec2.internal")
 	a.On("GroupName").Return("test")
 	a.On("GroupInstances").Return(map[string]string{
 		"1": "1.ec2.internal",
@@ -252,7 +253,7 @@ func TestController_ExistingClusterGetConfig(t *testing.T) {
 	}
 
 	a.On("InstanceID").Return("1")
-	a.On("Hostname").Return("1.ec2.internal")
+	a.On("IP").Return("1.ec2.internal")
 	a.On("GroupName").Return("test")
 	a.On("GroupInstances").Return(map[string]string{
 		"1": "1.ec2.internal",
@@ -270,10 +271,10 @@ func TestController_ExistingClusterGetConfig(t *testing.T) {
 	}, nil)
 
 	expected := &Config{
-		Config:     etcdTestConfig,
-		InstanceID: "1",
-		Hostname:   "1.ec2.internal",
-		GroupName:  "test",
+		Config:       etcdTestConfig,
+		InstanceID:   "1",
+		InstanceHost: "1.ec2.internal",
+		GroupName:    "test",
 		Instances: map[string]string{
 			"1": "1.ec2.internal",
 			"2": "2.ec2.internal",
@@ -294,10 +295,10 @@ func TestController_ExistingClusterGetConfig(t *testing.T) {
 
 func TestController_ExistingClusterRealized(t *testing.T) {
 	config := &Config{
-		Config:     etcdTestConfig,
-		InstanceID: "1",
-		Hostname:   "1.ec2.internal",
-		GroupName:  "test",
+		Config:       etcdTestConfig,
+		InstanceID:   "1",
+		InstanceHost: "1.ec2.internal",
+		GroupName:    "test",
 		Instances: map[string]string{
 			"1": "1.ec2.internal",
 			"2": "2.ec2.internal",
@@ -353,10 +354,10 @@ ETCD_PEER_CLIENT_CERT_AUTH=true
 
 func TestController_NeedsRemoval(t *testing.T) {
 	config := &Config{
-		Config:     etcdTestConfig,
-		InstanceID: "1",
-		Hostname:   "1.ec2.internal",
-		GroupName:  "test",
+		Config:       etcdTestConfig,
+		InstanceID:   "1",
+		InstanceHost: "1.ec2.internal",
+		GroupName:    "test",
 		Instances: map[string]string{
 			"1": "1.ec2.internal",
 		},
@@ -382,7 +383,7 @@ func TestController_ExistingClusterRun(t *testing.T) {
 	}
 
 	a.On("InstanceID").Return("1")
-	a.On("Hostname").Return("1.ec2.internal")
+	a.On("IP").Return("1.ec2.internal")
 	a.On("GroupName").Return("test")
 	a.On("GroupInstances").Return(map[string]string{
 		"1": "1.ec2.internal",
@@ -438,7 +439,7 @@ func TestController_ExistingClusterRemovalRun(t *testing.T) {
 	}
 
 	a.On("InstanceID").Return("1")
-	a.On("Hostname").Return("1.ec2.internal")
+	a.On("IP").Return("1.ec2.internal")
 	a.On("GroupName").Return("test")
 	a.On("GroupInstances").Return(map[string]string{
 		"1": "1.ec2.internal",
@@ -488,10 +489,10 @@ ETCD_PEER_CLIENT_CERT_AUTH=true
 
 func TestController_RealizedSSL(t *testing.T) {
 	config := &Config{
-		Config:     etcd.GetEnvConfig(),
-		InstanceID: "1",
-		Hostname:   "1.ec2.internal",
-		GroupName:  "test",
+		Config:       etcd.GetEnvConfig(),
+		InstanceID:   "1",
+		InstanceHost: "1.ec2.internal",
+		GroupName:    "test",
 		Instances: map[string]string{
 			"1": "1.ec2.internal",
 			"2": "2.ec2.internal",

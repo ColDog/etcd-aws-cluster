@@ -15,9 +15,9 @@ import (
 type Config struct {
 	etcd.Config
 
-	InstanceID string
-	Hostname   string
-	GroupName  string
+	InstanceID   string
+	InstanceHost string
+	GroupName    string
 
 	Instances        map[string]string
 	AvailableMembers map[string]bool
@@ -116,7 +116,7 @@ func (c *Controller) refreshConfig() (*Config, error) {
 		Config:           c.etcd.Config(),
 		InstanceID:       c.aws.InstanceID(),
 		GroupName:        c.aws.GroupName(),
-		Hostname:         c.aws.Hostname(),
+		InstanceHost:     c.aws.IP(),
 		Instances:        instances,
 		AvailableMembers: availableMembers,
 		ActiveMembers:    activeMembers,
@@ -130,8 +130,8 @@ func (c *Controller) getRealizedConfig(config *Config) *RealizedConfig {
 		Name:                      config.InstanceID,
 		ListenClientURL:           config.ClientURL("0.0.0.0"),
 		ListenPeerURL:             config.PeerURL("0.0.0.0"),
-		InitialAdvertiseClientURL: config.ClientURL(config.Hostname),
-		InitialAdvertisePeerURL:   config.PeerURL(config.Hostname),
+		InitialAdvertiseClientURL: config.ClientURL(config.InstanceHost),
+		InitialAdvertisePeerURL:   config.PeerURL(config.InstanceHost),
 	}
 
 	// If any are available, join an existing cluster.
@@ -140,7 +140,7 @@ func (c *Controller) getRealizedConfig(config *Config) *RealizedConfig {
 		for k, v := range config.ActiveMembers {
 			members[k] = v
 		}
-		members[config.InstanceID] = config.Hostname
+		members[config.InstanceID] = config.InstanceHost
 		realized.ClusterState = "existing"
 		realized.InitialCluster = config.PeerURLs(members)
 	} else {
@@ -187,8 +187,8 @@ func (c *Controller) Run() error {
 	logConfig(realized)
 
 	if config.AnyAvailable() && !config.AvailableMembers[config.InstanceID] {
-		log.Printf("adding self to cluster: %s", config.Hostname)
-		err = c.etcd.Add(config.AnyAvailableHost(), config.Hostname)
+		log.Printf("adding self to cluster: %s", config.InstanceHost)
+		err = c.etcd.Add(config.AnyAvailableHost(), config.InstanceHost)
 		if err != nil {
 			return err
 		}

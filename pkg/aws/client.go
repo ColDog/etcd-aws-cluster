@@ -19,6 +19,7 @@ var createSession = session.NewSession
 
 type Client interface {
 	Hostname() string
+	IP() string
 	InstanceID() string
 	Region() string
 	GroupName() string
@@ -42,6 +43,10 @@ func NewClient() (Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	ip, err := meta.GetMetadata("local-ipv4")
+	if err != nil {
+		return nil, err
+	}
 	instanceID, err := meta.GetMetadata("instance-id")
 	if err != nil {
 		return nil, err
@@ -57,6 +62,7 @@ func NewClient() (Client, error) {
 		ec2:        ec2.New(sess),
 		s3:         s3.New(sess),
 		hostname:   hostname,
+		ip:         ip,
 		region:     doc.Region,
 		instanceID: instanceID,
 	}
@@ -72,6 +78,7 @@ type client struct {
 	ec2        ec2iface.EC2API
 	s3         s3iface.S3API
 	hostname   string
+	ip         string
 	region     string
 	instanceID string
 	groupName  string
@@ -79,6 +86,7 @@ type client struct {
 
 func (c *client) Region() string     { return c.region }
 func (c *client) Hostname() string   { return c.hostname }
+func (c *client) IP() string         { return c.ip }
 func (c *client) InstanceID() string { return c.instanceID }
 func (c *client) GroupName() string  { return c.groupName }
 
