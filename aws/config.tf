@@ -15,6 +15,7 @@ data "ignition_config" "etcd" {
 
   files = [
     "${data.ignition_file.config.id}",
+    "${data.ignition_file.etcdctl_wrapper.id}",
   ]
 }
 
@@ -79,6 +80,7 @@ ExecStartPre=/usr/bin/mkdir -p /etc/etcd/certs
 ExecStartPre=/usr/bin/chown -R etcd:etcd /etc/etcd
 ExecStartPost=/usr/bin/chown -R etcd:etcd /etc/etcd/certs
 ExecStart=/usr/bin/docker run --rm -i \
+  --name=etcd-server-cert \
   --user=$${ETCD_UID} \
   -e ETCD_SERVER_KEY=${var.pki_etcd_server_key} \
   -e CA_URL=${var.pki_ca_url} \
@@ -87,7 +89,7 @@ ExecStart=/usr/bin/docker run --rm -i \
   -e INSTANCE_HOSTNAME=$${COREOS_EC2_HOSTNAME} \
   -v /etc/etcd/certs:/certs \
   ${var.pki_image} gencert etcd server
-ExecStop=/usr/bin/docker stop etcd-peer-cert
+ExecStop=-/usr/bin/docker stop etcd-server-cert
 
 [Install]
 WantedBy=multi-user.target
@@ -117,6 +119,7 @@ ExecStartPre=/usr/bin/mkdir -p /etc/etcd/certs
 ExecStartPre=/usr/bin/chown -R etcd:etcd /etc/etcd
 ExecStartPost=/usr/bin/chown -R etcd:etcd /etc/etcd/certs
 ExecStart=/usr/bin/docker run --rm -i \
+  --name=etcd-peer-cert \
   --user=$${ETCD_UID} \
   -e ETCD_SERVER_KEY=${var.pki_etcd_server_key} \
   -e CA_URL=${var.pki_ca_url} \
@@ -125,7 +128,7 @@ ExecStart=/usr/bin/docker run --rm -i \
   -e INSTANCE_HOSTNAME=$${COREOS_EC2_HOSTNAME} \
   -v /etc/etcd/certs:/certs \
   ${var.pki_image} gencert etcd peer
-ExecStop=/usr/bin/docker stop etcd-peer-cert
+ExecStop=-/usr/bin/docker stop etcd-peer-cert
 
 [Install]
 WantedBy=multi-user.target
@@ -303,4 +306,23 @@ OnActiveSec=7d
 [Install]
 WantedBy=timers.target
 EOF
+}
+
+data "ignition_file" "etcdctl_wrapper" {
+  path       = "/opt/bin/etcdctl-wrapper"
+  mode       = 0700
+  filesystem = "root"
+
+  content {
+    content = <<EOF
+#!/bin/sh
+export ETCDCTL_API=3
+etcdctl \
+  --cacert /etc/etcd/certs/etcd-server-ca.pem \
+  --cert /etc/etcd/certs/etcd-server.pem \
+  --key /etc/etcd/certs/etcd-server-key.pem \
+  --insecure-transport=false \
+  $$@
+EOF
+  }
 }
