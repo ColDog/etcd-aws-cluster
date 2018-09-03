@@ -35,9 +35,13 @@ variable "pki_ca_url" {}
 variable "pki_etcd_server_key" {}
 
 variable "pki_image" {
-  default = "coldog/pki:latest"
+  default = "quay.io/coldog/pki:v0.0.1"
 }
 
 variable "controller_image" {
-  default = "coldog/etcd-aws-cluster:latest"
+  default = "quay.io/coldog/etcd-aws-cluster:v0.0.2"
+}
+
+variable "etcd_image" {
+  default = "quay.io/coreos/etcd:v3.2.18"
 }
